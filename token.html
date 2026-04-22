@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>EXIAL Token Sale — Buy EXIAL</title>
+  <meta name="description" content="Purchase EXIAL tokens — the utility and governance token powering the EXIAL platform. Track real-time prices, token sale progress, and connect your wallet to participate."/>
+  <link rel="icon" href="/assets/img/exial-logo.png"/>
+  <link rel="stylesheet" href="/assets/styles.css"/>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- ethers.js v6 -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.umd.min.js"></script>
+  <style>
+    /* ── Token page extras ──────────────────────────────────────────── */
+    :root{
+      --green:#22c55e;
+      --red:#ef4444;
+    }
+
+    /* ── Crypto ticker bar ─────────────────────────────────────────── */
+    .ticker-bar{
+      background:rgba(0,0,0,0.42);
+      border-bottom:1px solid rgba(255,255,255,0.07);
+      padding:7px 0;
+      overflow:hidden;
+      position:relative;
+    }
+    .ticker-inner{
+      display:flex;
+      gap:0;
+      animation:ticker-scroll 38s linear infinite;
+      width:max-content;
+    }
+    .ticker-bar:hover .ticker-inner{animation-play-state:paused}
+    @keyframes ticker-scroll{
+      0%{transform:translateX(0)}
+      100%{transform:translateX(-50%)}
+    }
+    .ticker-item{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:0 28px;
+      font-size:12px;
+      letter-spacing:0.06em;
+      white-space:nowrap;
+      border-right:1px solid rgba(255,255,255,0.08);
+    }
+    .ticker-item .sym{color:var(--teal);font-weight:700;letter-spacing:0.12em}
+    .ticker-item .price{color:var(--text)}
+    .ticker-item .chg.up{color:var(--green)}
+    .ticker-item .chg.dn{color:var(--red)}
+
+    /* ── Countdown ─────────────────────────────────────────────────── */
+    .countdown{
+      display:flex;
+      gap:14px;
+      justify-content:center;
+      flex-wrap:wrap;
+      margin:18px 0 0;
+    }
+    .cd-block{
+      background:rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:14px;
+      padding:14px 18px;
+      min-width:74px;
+      text-align:center;
+    }
+    .cd-block .num{
+      font-size:32px;
+      font-weight:700;
+      letter-spacing:0.05em;
+      color:var(--teal);
+      line-height:1;
+    }
+    .cd-block .lbl{
+      font-size:10px;
+      letter-spacing:0.22em;
+      text-transform:uppercase;
+      color:var(--muted);
+      margin-top:4px;
+    }
+
+    /* ── Progress bar ──────────────────────────────────────────────── */
+    .progress-wrap{margin:16px 0}
+    .progress-labels{
+      display:flex;
+      justify-content:space-between;
+      font-size:12px;
+      color:var(--muted);
+      letter-spacing:0.06em;
+      margin-bottom:7px;
+    }
+    .progress-track{
+      height:14px;
+      background:rgba(255,255,255,0.07);
+      border-radius:999px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,0.10);
+    }
+    .progress-fill{
+      height:100%;
+      background:linear-gradient(90deg, var(--teal), var(--blue));
+      border-radius:999px;
+      transition:width 1.2s ease;
+      position:relative;
+    }
+    .progress-fill::after{
+      content:'';
+      position:absolute;
+      right:0;top:0;bottom:0;width:24px;
+      background:rgba(255,255,255,0.22);
+      border-radius:999px;
+      animation:glow-pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes glow-pulse{0%,100%{opacity:0.6}50%{opacity:1}}
+
+    /* ── Stat pills ────────────────────────────────────────────────── */
+    .stat-row{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+      margin:22px 0;
+    }
+    .stat-pill{
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.09);
+      border-radius:16px;
+      padding:16px 14px;
+      text-align:center;
+    }
+    .stat-pill .val{
+      font-size:22px;
+      font-weight:700;
+      letter-spacing:0.04em;
+      color:var(--teal);
+    }
+    .stat-pill .key{
+      font-size:11px;
+      letter-spacing:0.16em;
+      text-transform:uppercase;
+      color:var(--muted);
+      margin-top:4px;
+    }
+
+    /* ── Buy widget ────────────────────────────────────────────────── */
+    .buy-card{
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:var(--radius);
+      padding:28px 24px;
+      box-shadow:var(--shadow);
+      max-width:480px;
+      margin:0 auto;
+    }
+    .buy-card h3{
+      text-align:center;
+      font-size:18px;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      margin:0 0 20px;
+    }
+    .currency-tabs{
+      display:flex;
+      gap:8px;
+      justify-content:center;
+      margin-bottom:18px;
+      flex-wrap:wrap;
+    }
+    .cur-tab{
+      padding:7px 16px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.14);
+      background:rgba(255,255,255,0.04);
+      color:var(--muted);
+      font-size:13px;
+      cursor:pointer;
+      letter-spacing:0.08em;
+      transition:all 0.2s;
+    }
+    .cur-tab.active,
+    .cur-tab:hover{
+      background:rgba(20,188,189,0.18);
+      border-color:rgba(20,188,189,0.42);
+      color:var(--teal);
+    }
+    .input-group{
+      margin-bottom:14px;
+    }
+    .input-group label{
+      display:block;
+      font-size:11px;
+      letter-spacing:0.18em;
+      text-transform:uppercase;
+      color:var(--muted);
+      margin-bottom:7px;
+    }
+    .input-row{
+      display:flex;
+      align-items:center;
+      background:rgba(0,0,0,0.35);
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:12px;
+      overflow:hidden;
+    }
+    .input-row input{
+      flex:1;
+      background:transparent;
+      border:none;
+      outline:none;
+      color:var(--text);
+      font-size:18px;
+      padding:13px 14px;
+      font-family:inherit;
+    }
+    .input-row .unit{
+      padding:0 14px;
+      font-size:13px;
+      color:var(--muted);
+      letter-spacing:0.08em;
+    }
+    .conversion-line{
+      text-align:center;
+      font-size:13px;
+      color:var(--muted);
+      margin:8px 0 18px;
+      min-height:20px;
+    }
+    .conversion-line span{color:var(--teal)}
+    .btn-wallet{
+      width:100%;
+      padding:15px;
+      font-size:15px;
+      letter-spacing:0.10em;
+      border-radius:14px;
+      cursor:pointer;
+      font-family:inherit;
+      transition:all 0.2s;
+    }
+    .btn-wallet.connect{
+      background:linear-gradient(135deg,rgba(20,188,189,0.9),rgba(17,151,212,0.9));
+      border:1px solid rgba(255,255,255,0.14);
+      color:#061015;
+      font-weight:700;
+    }
+    .btn-wallet.connect:hover{filter:saturate(1.15);transform:translateY(-1px)}
+    .btn-wallet.connected{
+      background:rgba(34,197,94,0.14);
+      border:1px solid rgba(34,197,94,0.34);
+      color:var(--green);
+    }
+    .btn-wallet.buy-now{
+      background:linear-gradient(135deg,rgba(20,188,189,0.90),rgba(17,151,212,0.90));
+      border:1px solid rgba(255,255,255,0.14);
+      color:#061015;
+      font-weight:700;
+      margin-top:10px;
+      display:none;
+    }
+    .btn-wallet.buy-now:hover{filter:saturate(1.1);transform:translateY(-1px)}
+    .wallet-addr{
+      text-align:center;
+      font-size:11px;
+      color:var(--muted);
+      letter-spacing:0.06em;
+      margin-top:8px;
+      min-height:16px;
+    }
+    .phase-badge{
+      text-align:center;
+      margin-bottom:16px;
+    }
+    .phase-tag{
+      display:inline-block;
+      padding:7px 14px;
+      border-radius:999px;
+      background:rgba(20,188,189,0.16);
+      border:1px solid rgba(20,188,189,0.28);
+      color:rgba(234,240,247,0.92);
+      font-size:11px;
+      letter-spacing:0.18em;
+      text-transform:uppercase;
+    }
+
+    /* ── Tokenomics chart ──────────────────────────────────────────── */
+    .chart-wrap{
+      max-width:360px;
+      margin:0 auto 18px;
+      position:relative;
+    }
+    .chart-center-label{
+      position:absolute;
+      top:50%;left:50%;
+      transform:translate(-50%,-50%);
+      text-align:center;
+      pointer-events:none;
+    }
+    .chart-center-label .big{
+      font-size:22px;
+      font-weight:700;
+      color:var(--teal);
+      letter-spacing:0.06em;
+    }
+    .chart-center-label .sm{
+      font-size:10px;
+      color:var(--muted);
+      letter-spacing:0.18em;
+      text-transform:uppercase;
+    }
+    .token-legend{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px 16px;
+      margin:0 auto;
+      max-width:520px;
+    }
+    .legend-item{
+      display:flex;
+      align-items:center;
+      gap:9px;
+      font-size:13px;
+      color:var(--muted);
+    }
+    .legend-dot{
+      width:11px;
+      height:11px;
+      border-radius:50%;
+      flex-shrink:0;
+    }
+    .legend-item .lname{color:var(--text);font-size:13px}
+    .legend-item .lpct{margin-left:auto;color:var(--teal);font-size:12px;font-weight:700}
+
+    /* ── Price chart section ───────────────────────────────────────── */
+    .price-chart-wrap{
+      height:220px;
+      background:rgba(255,255,255,0.03);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:16px;
+      padding:16px;
+      position:relative;
+    }
+    .price-chart-wrap canvas{width:100%!important;height:100%!important}
+
+    /* ── How to buy steps ──────────────────────────────────────────── */
+    .steps{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:14px;
+      margin:18px 0;
+    }
+    .step{
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.09);
+      border-radius:18px;
+      padding:20px 16px;
+      text-align:center;
+    }
+    .step-num{
+      width:38px;height:38px;
+      border-radius:50%;
+      background:linear-gradient(135deg,var(--teal),var(--blue));
+      display:flex;align-items:center;justify-content:center;
+      font-size:16px;font-weight:700;color:#061015;
+      margin:0 auto 12px;
+    }
+    .step h4{
+      margin:0 0 8px;
+      font-size:13px;
+      letter-spacing:0.10em;
+      text-transform:uppercase;
+    }
+    .step p{
+      margin:0;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.55;
+    }
+
+    /* ── Roadmap ───────────────────────────────────────────────────── */
+    .roadmap{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:14px;
+      margin:18px 0;
+    }
+    .rm-phase{
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.09);
+      border-radius:18px;
+      padding:20px 18px;
+    }
+    .rm-phase .ph-label{
+      font-size:10px;
+      letter-spacing:0.22em;
+      text-transform:uppercase;
+      color:var(--teal);
+      margin-bottom:6px;
+    }
+    .rm-phase h4{
+      margin:0 0 12px;
+      font-size:14px;
+      letter-spacing:0.10em;
+      text-transform:uppercase;
+    }
+    .rm-phase ul{
+      margin:0;padding:0;
+      list-style:none;
+    }
+    .rm-phase ul li{
+      padding:6px 0;
+      border-bottom:1px solid rgba(255,255,255,0.07);
+      font-size:12px;
+      color:var(--muted);
+      display:flex;
+      align-items:flex-start;
+      gap:7px;
+    }
+    .rm-phase ul li:last-child{border-bottom:none}
+    .rm-phase ul li::before{
+      content:'›';
+      color:var(--teal);
+      font-size:14px;
+      line-height:1.1;
+    }
+    .rm-phase.active-phase{
+      border-color:rgba(20,188,189,0.42);
+      background:rgba(20,188,189,0.07);
+    }
+
+    /* ── FAQ ───────────────────────────────────────────────────────── */
+    .faq-item{
+      border-bottom:1px solid rgba(255,255,255,0.08);
+      padding:14px 0;
+      cursor:pointer;
+    }
+    .faq-item:last-child{border-bottom:none}
+    .faq-q{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      font-size:14px;
+      letter-spacing:0.06em;
+      color:var(--text);
+    }
+    .faq-q .icon{
+      font-size:18px;
+      color:var(--teal);
+      transition:transform 0.2s;
+      flex-shrink:0;
+      margin-left:12px;
+    }
+    .faq-item.open .faq-q .icon{transform:rotate(45deg)}
+    .faq-a{
+      display:none;
+      padding:10px 0 2px;
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.6;
+    }
+    .faq-item.open .faq-a{display:block}
+
+    /* ── Live price display ────────────────────────────────────────── */
+    .live-price-grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+      margin:18px 0;
+    }
+    .live-price-card{
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.09);
+      border-radius:16px;
+      padding:18px 14px;
+      text-align:center;
+    }
+    .live-price-card .asset{
+      font-size:11px;
+      letter-spacing:0.18em;
+      text-transform:uppercase;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+    .live-price-card .usd{
+      font-size:24px;
+      font-weight:700;
+      color:var(--text);
+    }
+    .live-price-card .chg24{
+      font-size:12px;
+      margin-top:5px;
+      font-weight:600;
+    }
+    .live-price-card .chg24.up{color:var(--green)}
+    .live-price-card .chg24.dn{color:var(--red)}
+    .live-dot{
+      display:inline-block;
+      width:7px;height:7px;
+      border-radius:50%;
+      background:var(--green);
+      margin-right:5px;
+      animation:live-blink 1.4s ease-in-out infinite;
+    }
+    @keyframes live-blink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+    /* ── Token utility grid ────────────────────────────────────────── */
+    .utility-grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:14px;
+      margin:18px 0;
+    }
+    .util-card{
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.09);
+      border-radius:18px;
+      padding:22px 18px;
+    }
+    .util-icon{
+      font-size:30px;
+      margin-bottom:10px;
+    }
+    .util-card h4{
+      margin:0 0 8px;
+      font-size:13px;
+      letter-spacing:0.10em;
+      text-transform:uppercase;
+    }
+    .util-card p{
+      margin:0;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.55;
+    }
+
+    /* ── Whitelist form ────────────────────────────────────────────── */
+    .wl-form{
+      max-width:480px;
+      margin:0 auto;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .wl-form input{
+      flex:1;
+      min-width:220px;
+      background:rgba(0,0,0,0.35);
+      border:1px solid rgba(255,255,255,0.14);
+      border-radius:12px;
+      padding:13px 16px;
+      color:var(--text);
+      font-size:14px;
+      font-family:inherit;
+      outline:none;
+    }
+    .wl-form input:focus{border-color:rgba(20,188,189,0.50)}
+    .wl-success{
+      text-align:center;
+      color:var(--green);
+      font-size:14px;
+      letter-spacing:0.08em;
+      display:none;
+    }
+
+    /* ── Token address pill ────────────────────────────────────────── */
+    .addr-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:999px;
+      padding:9px 16px;
+      font-size:12px;
+      letter-spacing:0.06em;
+      color:var(--muted);
+      cursor:pointer;
+    }
+    .addr-pill:hover{border-color:rgba(20,188,189,0.4);color:var(--teal)}
+    .addr-pill .copy-icon{font-size:14px}
+    .addr-label{color:var(--teal);letter-spacing:0.12em;font-size:11px;text-transform:uppercase;margin-right:6px}
+
+    /* ── Notification toast ────────────────────────────────────────── */
+    .toast{
+      position:fixed;
+      bottom:28px;right:28px;
+      background:rgba(20,188,189,0.18);
+      border:1px solid rgba(20,188,189,0.42);
+      border-radius:12px;
+      padding:12px 20px;
+      font-size:13px;
+      color:var(--teal);
+      letter-spacing:0.06em;
+      z-index:999;
+      transform:translateY(100px);
+      opacity:0;
+      transition:all 0.3s ease;
+    }
+    .toast.show{transform:translateY(0);opacity:1}
+
+    /* ── Responsive ────────────────────────────────────────────────── */
+    @media(max-width:900px){
+      .stat-row{grid-template-columns:repeat(2,1fr)}
+      .steps{grid-template-columns:repeat(2,1fr)}
+      .roadmap{grid-template-columns:1fr}
+      .utility-grid{grid-template-columns:repeat(2,1fr)}
+      .live-price-grid{grid-template-columns:1fr}
+    }
+    @media(max-width:600px){
+      .stat-row{grid-template-columns:repeat(2,1fr)}
+      .steps{grid-template-columns:1fr}
+      .token-legend{grid-template-columns:1fr}
+      .utility-grid{grid-template-columns:1fr}
+      .stat-pill .val{font-size:18px}
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Crypto Ticker Bar ──────────────────────────────────────────── -->
+<div class="ticker-bar" id="tickerBar">
+  <div class="ticker-inner" id="tickerInner">
+    <!-- Populated by JS -->
+    <div class="ticker-item"><span class="sym">BTC</span><span class="price" id="btc-p">Loading…</span><span class="chg" id="btc-c"></span></div>
+    <div class="ticker-item"><span class="sym">ETH</span><span class="price" id="eth-p">—</span><span class="chg" id="eth-c"></span></div>
+    <div class="ticker-item"><span class="sym">MATIC</span><span class="price" id="matic-p">—</span><span class="chg" id="matic-c"></span></div>
+    <div class="ticker-item"><span class="sym">SOL</span><span class="price" id="sol-p">—</span><span class="chg" id="sol-c"></span></div>
+    <div class="ticker-item"><span class="sym">BNB</span><span class="price" id="bnb-p">—</span><span class="chg" id="bnb-c"></span></div>
+    <div class="ticker-item"><span class="sym">EXIAL</span><span class="price" id="exial-ticker">Presale</span><span class="chg up">🔥 Live Soon</span></div>
+    <!-- Duplicated for seamless loop -->
+    <div class="ticker-item"><span class="sym">BTC</span><span class="price" id="btc-p2">—</span><span class="chg" id="btc-c2"></span></div>
+    <div class="ticker-item"><span class="sym">ETH</span><span class="price" id="eth-p2">—</span><span class="chg" id="eth-c2"></span></div>
+    <div class="ticker-item"><span class="sym">MATIC</span><span class="price" id="matic-p2">—</span><span class="chg" id="matic-c2"></span></div>
+    <div class="ticker-item"><span class="sym">SOL</span><span class="price" id="sol-p2">—</span><span class="chg" id="sol-c2"></span></div>
+    <div class="ticker-item"><span class="sym">BNB</span><span class="price" id="bnb-p2">—</span><span class="chg" id="bnb-c2"></span></div>
+    <div class="ticker-item"><span class="sym">EXIAL</span><span class="price">Presale</span><span class="chg up">🔥 Live Soon</span></div>
+  </div>
+</div>
+
+<!-- ── Nav ───────────────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-inner">
+    <div class="brand">
+      <img src="/assets/img/exial-logo.png" alt="EXIAL"/>
+      <div class="title">
+        <strong>EXIAL</strong>
+        <span>EXPONENTIAL POTENTIAL</span>
+      </div>
+    </div>
+    <div class="nav-links">
+      <a href="/index.html">Home</a>
+      <a href="/events.html">Events</a>
+      <a href="/hotels.html">Hotels</a>
+      <a href="/travel.html">Travel</a>
+      <a href="/shop.html">Shop</a>
+      <a href="/token.html" aria-current="page">Buy EXIAL</a>
+    </div>
+    <a class="btn primary" href="/contact.html">Contact</a>
+  </div>
+</nav>
+
+<!-- ── Hero ──────────────────────────────────────────────────────── -->
+<div class="container hero center">
+  <div class="hero-card">
+      <div class="kicker"><span class="live-dot"></span> Live Token Sale — Phase 1</div>
+      <div class="h1" style="font-size:clamp(28px,5vw,52px)">Buy <span style="color:var(--teal)">EXIAL</span> Tokens</div>
+      <p class="sub">The utility, payment, and governance token powering the entire EXIAL ecosystem — events, hotels, travel, rewards, and beyond.</p>
+
+      <!-- Phase badge + countdown -->
+      <div class="phase-badge">
+        <span class="phase-tag">⚡ Presale Phase 1 · Ends In:</span>
+      </div>
+      <div class="countdown" id="countdown">
+        <div class="cd-block"><div class="num" id="cd-d">--</div><div class="lbl">Days</div></div>
+        <div class="cd-block"><div class="num" id="cd-h">--</div><div class="lbl">Hours</div></div>
+        <div class="cd-block"><div class="num" id="cd-m">--</div><div class="lbl">Mins</div></div>
+        <div class="cd-block"><div class="num" id="cd-s">--</div><div class="lbl">Secs</div></div>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="progress-wrap" style="margin-top:24px">
+        <div class="progress-labels">
+          <span id="sold-label">0 EXIAL Sold</span>
+          <span id="pct-label">0% Complete</span>
+          <span id="goal-label">Goal: 200,000,000 EXIAL</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- CTA buttons -->
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px">
+        <a href="#buy" class="btn primary" style="font-size:15px;padding:13px 30px">Buy EXIAL Now</a>
+        <a href="#tokenomics" class="btn" style="font-size:14px">View Tokenomics</a>
+        <a href="#whitelist" class="btn" style="font-size:14px">Join Whitelist</a>
+      </div>
+  </div>
+</div>
+
+<!-- ── Sale Stats ─────────────────────────────────────────────────── -->
+<div class="container">
+  <div class="stat-row">
+    <div class="stat-pill">
+      <div class="val" id="stat-price">$0.0050</div>
+      <div class="key">Current Price</div>
+    </div>
+    <div class="stat-pill">
+      <div class="val" id="stat-raised">$0</div>
+      <div class="key">Total Raised</div>
+    </div>
+    <div class="stat-pill">
+      <div class="val" id="stat-sold">0</div>
+      <div class="key">Tokens Sold</div>
+    </div>
+    <div class="stat-pill">
+      <div class="val">2,000,000,000</div>
+      <div class="key">Max Supply</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Live Market Prices ─────────────────────────────────────────── -->
+<div class="container">
+  <div class="section">
+    <h2>Live Market Prices</h2>
+    <p class="lead">Real-time data via CoinGecko. <span class="live-dot"></span> Updates every 30 seconds.</p>
+    <div class="live-price-grid">
+      <div class="live-price-card">
+        <div class="asset">Bitcoin (BTC)</div>
+        <div class="usd" id="btc-full">—</div>
+        <div class="chg24" id="btc-chg">—</div>
+      </div>
+      <div class="live-price-card">
+        <div class="asset">Ethereum (ETH)</div>
+        <div class="usd" id="eth-full">—</div>
+        <div class="chg24" id="eth-chg">—</div>
+      </div>
+      <div class="live-price-card">
+        <div class="asset">Polygon (MATIC)</div>
+        <div class="usd" id="matic-full">—</div>
+        <div class="chg24" id="matic-chg">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Buy Widget ─────────────────────────────────────────────────── -->
+<div class="container" id="buy">
+  <div class="section">
+    <h2>Purchase EXIAL Tokens</h2>
+    <p class="lead">Connect your wallet and buy EXIAL with MATIC, ETH, or USDC. Tokens are delivered directly to your wallet on the Polygon network.</p>
+
+    <div class="buy-card">
+      <div class="phase-badge">
+        <span class="phase-tag">Phase 1 Price: $0.0050 / EXIAL</span>
+      </div>
+      <h3>Buy EXIAL</h3>
+
+      <!-- Currency selector -->
+      <div class="currency-tabs">
+        <button class="cur-tab active" onclick="setCurrency('MATIC',this)">MATIC</button>
+        <button class="cur-tab" onclick="setCurrency('ETH',this)">ETH</button>
+        <button class="cur-tab" onclick="setCurrency('USDC',this)">USDC</button>
+        <button class="cur-tab" onclick="setCurrency('BNB',this)">BNB</button>
+      </div>
+
+      <!-- Amount in -->
+      <div class="input-group">
+        <label>You Pay</label>
+        <div class="input-row">
+          <input type="number" id="payInput" placeholder="0.0" min="0" step="any" oninput="calcTokens()"/>
+          <div class="unit" id="payUnit">MATIC</div>
+        </div>
+      </div>
+
+      <div class="conversion-line" id="convLine">Enter amount to see EXIAL equivalent</div>
+
+      <!-- Amount out -->
+      <div class="input-group">
+        <label>You Receive</label>
+        <div class="input-row">
+          <input type="number" id="receiveInput" placeholder="0" readonly style="color:var(--teal)"/>
+          <div class="unit">EXIAL</div>
+        </div>
+      </div>
+
+      <!-- Wallet button -->
+      <button class="btn-wallet connect" id="walletBtn" onclick="connectWallet()">
+        🔗 Connect Wallet
+      </button>
+      <button class="btn-wallet buy-now" id="buyBtn" onclick="buyTokens()">
+        ⚡ Buy EXIAL Now
+      </button>
+      <div class="wallet-addr" id="walletAddr"></div>
+
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.07)">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px">
+          <span>Min purchase</span><span style="color:var(--text)">100 EXIAL</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px">
+          <span>Network</span><span style="color:var(--teal)">Polygon (MATIC)</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)">
+          <span>Token Standard</span><span style="color:var(--text)">ERC-20</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contract address -->
+    <div class="center" style="margin-top:20px">
+      <div style="font-size:11px;color:var(--muted);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:8px">EXIAL Token Contract (Polygon)</div>
+      <div class="addr-pill" onclick="copyAddr()" title="Click to copy">
+        <span class="addr-label">CA</span>
+        <span id="contractAddr">0x0000…0000 — Deploying Soon</span>
+        <span class="copy-icon">⧉</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Tokenomics ─────────────────────────────────────────────────── -->
+<div class="container" id="tokenomics">
+  <div class="section">
+    <h2>Tokenomics</h2>
+    <p class="lead">Total fixed supply of 2,000,000,000 EXIAL. Designed for long-term ecosystem sustainability, rewards, and governance.</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center;max-width:900px;margin:0 auto">
+      <div class="chart-wrap">
+        <canvas id="tokenomicsChart"></canvas>
+        <div class="chart-center-label">
+          <div class="big">2B</div>
+          <div class="sm">Max Supply</div>
+        </div>
+      </div>
+      <div>
+        <div class="token-legend" id="tokenLegend"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Price History Chart ─────────────────────────────────────────── -->
+<div class="container">
+  <div class="section">
+    <h2>BTC Price — Last 30 Days</h2>
+    <p class="lead">Track Bitcoin market trends in real-time. <span class="live-dot"></span> Live data from CoinGecko API.</p>
+    <div class="price-chart-wrap">
+      <canvas id="priceChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ── Token Utility ───────────────────────────────────────────────── -->
+<div class="container">
+  <div class="section">
+    <h2>Token Utility</h2>
+    <p class="lead">EXIAL is more than a token — it's your key to the entire platform.</p>
+    <div class="utility-grid">
+      <div class="util-card">
+        <div class="util-icon">🎟️</div>
+        <h4>Event Payments</h4>
+        <p>Purchase tickets to concerts, sports, F1, basketball, and more using EXIAL at a discount vs. fiat.</p>
+      </div>
+      <div class="util-card">
+        <div class="util-icon">🏨</div>
+        <h4>Hotel Bookings</h4>
+        <p>Pay for hotel reservations across our Hotelbeds-powered inventory using EXIAL tokens.</p>
+      </div>
+      <div class="util-card">
+        <div class="util-icon">✈️</div>
+        <h4>Travel & Experiences</h4>
+        <p>Book travel packages and curated experiences — all payable in EXIAL with rewards back.</p>
+      </div>
+      <div class="util-card">
+        <div class="util-icon">🎁</div>
+        <h4>Loyalty Rewards</h4>
+        <p>Every Stripe purchase earns EXIAL rewards automatically minted to your wallet.</p>
+      </div>
+      <div class="util-card">
+        <div class="util-icon">🗳️</div>
+        <h4>Governance</h4>
+        <p>Vote on platform decisions, fee structures, and new integrations proportional to your holdings.</p>
+      </div>
+      <div class="util-card">
+        <div class="util-icon">🛍️</div>
+        <h4>Marketplace</h4>
+        <p>Pay vendors in the EXIAL Shop with EXIAL — commissions auto-distributed via Stripe Connect.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── How to Buy ─────────────────────────────────────────────────── -->
+<div class="container">
+  <div class="section">
+    <h2>How to Buy</h2>
+    <p class="lead">Get started in four simple steps. No crypto experience required.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h4>Get a Wallet</h4>
+        <p>Download MetaMask or use any Polygon-compatible wallet like Trust Wallet or Coinbase Wallet.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h4>Add Polygon Network</h4>
+        <p>Add Polygon Mainnet to your wallet. Chain ID: 137. RPC: polygon-rpc.com. Symbol: MATIC.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h4>Fund with MATIC</h4>
+        <p>Buy MATIC on Coinbase, Binance, or Kraken and send it to your wallet address on Polygon.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h4>Buy EXIAL</h4>
+        <p>Connect your wallet above, enter the amount, and confirm the transaction. EXIAL arrives instantly.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Roadmap ────────────────────────────────────────────────────── -->
+<div class="container">
+  <div class="section">
+    <h2>Roadmap</h2>
+    <p class="lead">A phased approach to building the complete EXIAL ecosystem.</p>
+    <div class="roadmap">
+      <div class="rm-phase active-phase">
+        <div class="ph-label">Phase 1 · NOW</div>
+        <h4>Token Launch</h4>
+        <ul>
+          <li>EXIAL ERC-20 Token Deployment</li>
+          <li>Public Token Sale (Presale)</li>
+          <li>Stripe Connect Integration</li>
+          <li>Vendor Onboarding System</li>
+          <li>Smart Contract Audit</li>
+          <li>CoinGecko Listing</li>
+        </ul>
+      </div>
+      <div class="rm-phase">
+        <div class="ph-label">Phase 2 · Q3 2026</div>
+        <h4>Platform Launch</h4>
+        <ul>
+          <li>Hotelbeds API Integration</li>
+          <li>Live Ticket API</li>
+          <li>EXIAL Rewards Engine Live</li>
+          <li>Unified Search & Booking</li>
+          <li>DEX Liquidity Provision</li>
+          <li>Mobile App Beta</li>
+        </ul>
+      </div>
+      <div class="rm-phase">
+        <div class="ph-label">Phase 3 · Q1 2027</div>
+        <h4>Ecosystem Expansion</h4>
+        <ul>
+          <li>Governance DAO Live</li>
+          <li>AI-Powered Recommendations</li>
+          <li>Multi-Currency Support</li>
+          <li>Vendor Dashboard</li>
+          <li>CEX Exchange Listings</li>
+          <li>Cross-Chain Bridge</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Whitelist / Email Signup ───────────────────────────────────── -->
+<div class="container" id="whitelist">
+  <div class="section">
+    <div class="hero-card center">
+      <div class="kicker">Don't Miss Out</div>
+      <div class="h1" style="font-size:clamp(22px,4vw,36px)">Join the Whitelist</div>
+      <p class="sub">Get early access, guaranteed presale allocation, and bonus EXIAL tokens. Limited spots available.</p>
+      <form class="wl-form" onsubmit="submitWhitelist(event)">
+        <input type="email" id="wlEmail" placeholder="your@email.com" required/>
+        <button type="submit" class="btn primary" style="color:#061015;white-space:nowrap">Get Early Access</button>
+      </form>
+      <p class="wl-success" id="wlSuccess">✓ You're on the list! We'll be in touch soon.</p>
+      <p class="small" style="margin-top:12px">No spam. Unsubscribe anytime. By joining you agree to our <a href="/legal/privacy.html">Privacy Policy</a>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── FAQ ────────────────────────────────────────────────────────── -->
+<div class="container">
+  <div class="section">
+    <h2>Frequently Asked Questions</h2>
+    <div class="panel" style="max-width:820px;margin:18px auto 0">
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">What blockchain is EXIAL on?<span class="icon">+</span></div>
+        <div class="faq-a">EXIAL is an ERC-20 token deployed on the Polygon network. Polygon offers fast, low-cost transactions — making it ideal for frequent payments on the EXIAL platform. You can bridge to Ethereum mainnet using official Polygon bridges.</div>
+      </div>
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">What is the token price?<span class="icon">+</span></div>
+        <div class="faq-a">The Phase 1 presale price is $0.0050 per EXIAL. The price increases with each phase. At launch on DEX exchanges, we anticipate a listing price of $0.0150 — a 3x from presale. Price is subject to market conditions.</div>
+      </div>
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">What is the total supply?<span class="icon">+</span></div>
+        <div class="faq-a">The hard cap is 2,000,000,000 (2 billion) EXIAL. This is enforced in the smart contract and can never be exceeded. Unsold presale tokens will be burned or added to the ecosystem fund by DAO vote.</div>
+      </div>
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">When will EXIAL be listed on exchanges?<span class="icon">+</span></div>
+        <div class="faq-a">We plan to list on decentralized exchanges (DEX) via QuickSwap on Polygon in Q3 2026, alongside our platform launch. CEX listings are targeted for Phase 3 in Q1 2027.</div>
+      </div>
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">Is there a vesting period?<span class="icon">+</span></div>
+        <div class="faq-a">Presale tokens are unlocked at TGE (Token Generation Event). Team and advisor tokens vest over 24 months with a 6-month cliff, enforced via the EXIALTimelock smart contract.</div>
+      </div>
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">Has the smart contract been audited?<span class="icon">+</span></div>
+        <div class="faq-a">Our contracts are built on OpenZeppelin's industry-standard ERC-20 library and are currently undergoing a third-party security audit. Audit results will be published publicly before the public sale goes live.</div>
+      </div>
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">Can I earn EXIAL without buying?<span class="icon">+</span></div>
+        <div class="faq-a">Yes! Every purchase made on the EXIAL platform via Stripe earns you EXIAL rewards — automatically minted to your connected wallet through the EXIALRewards contract. No investment required.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── Footer ─────────────────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>EXIAL Token</h4>
+        <a href="#buy">Buy EXIAL</a>
+        <a href="#tokenomics">Tokenomics</a>
+        <a href="#whitelist">Whitelist</a>
+        <a href="/token.html">Token Sale</a>
+      </div>
+      <div>
+        <h4>Platform</h4>
+        <a href="/events.html">Events</a>
+        <a href="/hotels.html">Hotels</a>
+        <a href="/travel.html">Travel</a>
+        <a href="/shop.html">Shop</a>
+      </div>
+      <div>
+        <h4>Legal</h4>
+        <a href="/legal/privacy.html">Privacy Policy</a>
+        <a href="/legal/terms.html">Terms of Service</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+    </div>
+    <div class="small center" style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.07)">
+      <p>⚠️ Purchasing cryptocurrency tokens involves significant risk. Only invest what you can afford to lose. This is not financial advice. EXIAL tokens are utility tokens, not securities.</p>
+      <p style="margin-top:8px">© 2026 EXIAL Inc. All rights reserved. · Polygon Network · ERC-20 Standard</p>
+    </div>
+  </div>
+</footer>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<!-- ── Scripts ────────────────────────────────────────────────────── -->
+<script>
+// ── CONFIG (update after contract deployment) ──────────────────────
+const CONFIG = {
+  TOKEN_PRICE_USD: 0.005,          // $0.005 per EXIAL (Phase 1)
+  PRESALE_CAP: 200_000_000,        // 200M tokens in Phase 1
+  CONTRACT_ADDRESS: null,          // Set after deployment: '0x...'
+  POLYGON_CHAIN_ID: '0x89',        // Polygon Mainnet
+  LAUNCH_DATE: new Date('2026-05-01T00:00:00Z'), // Countdown target
+  // Simulated sold amount (replace with live contract read after deployment)
+  SIMULATED_SOLD: 47_820_000,
+};
+
+// ── Tokenomics data ─────────────────────────────────────────────────
+const TOKENOMICS = [
+  {label:'Public Sale',    pct:30, color:'#14bcbd'},
+  {label:'Ecosystem / Rewards', pct:25, color:'#1197d4'},
+  {label:'Team & Advisors',pct:15, color:'#3555a4'},
+  {label:'Reserves',       pct:15, color:'#252a69'},
+  {label:'Liquidity',      pct:10, color:'#22c55e'},
+  {label:'Marketing',      pct:5,  color:'#f4c542'},
+];
+
+// ── State ──────────────────────────────────────────────────────────
+let selectedCurrency = 'MATIC';
+let livePrices = {};
+let walletConnected = false;
+let walletAddress = null;
+let priceChart = null;
+
+// ── Helpers ────────────────────────────────────────────────────────
+function fmt(n){
+  if(n>=1e9) return (n/1e9).toFixed(2)+'B';
+  if(n>=1e6) return (n/1e6).toFixed(2)+'M';
+  if(n>=1e3) return (n/1e3).toFixed(1)+'K';
+  return n.toFixed(0);
+}
+function fmtUSD(n){
+  if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M';
+  if(n>=1e3) return '$'+(n/1e3).toFixed(1)+'K';
+  return '$'+n.toFixed(2);
+}
+function showToast(msg, dur=3200){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+// ── Countdown timer ────────────────────────────────────────────────
+function updateCountdown(){
+  const diff = CONFIG.LAUNCH_DATE - Date.now();
+  if(diff<=0){
+    ['cd-d','cd-h','cd-m','cd-s'].forEach(id=>document.getElementById(id).textContent='00');
+    return;
+  }
+  const d=Math.floor(diff/864e5);
+  const h=Math.floor((diff%864e5)/36e5);
+  const m=Math.floor((diff%36e5)/6e4);
+  const s=Math.floor((diff%6e4)/1e3);
+  document.getElementById('cd-d').textContent=String(d).padStart(2,'0');
+  document.getElementById('cd-h').textContent=String(h).padStart(2,'0');
+  document.getElementById('cd-m').textContent=String(m).padStart(2,'0');
+  document.getElementById('cd-s').textContent=String(s).padStart(2,'0');
+}
+setInterval(updateCountdown,1000);
+updateCountdown();
+
+// ── Token sale progress ────────────────────────────────────────────
+function updateProgress(sold){
+  const pct = Math.min((sold/CONFIG.PRESALE_CAP)*100, 100).toFixed(2);
+  const raised = sold * CONFIG.TOKEN_PRICE_USD;
+  document.getElementById('progressFill').style.width = pct+'%';
+  document.getElementById('sold-label').textContent = fmt(sold)+' EXIAL Sold';
+  document.getElementById('pct-label').textContent = pct+'% Complete';
+  document.getElementById('goal-label').textContent = 'Goal: '+fmt(CONFIG.PRESALE_CAP)+' EXIAL';
+  document.getElementById('stat-sold').textContent = fmt(sold);
+  document.getElementById('stat-raised').textContent = fmtUSD(raised);
+  document.getElementById('stat-price').textContent = '$'+CONFIG.TOKEN_PRICE_USD.toFixed(4);
+}
+// Animate from 0 to simulated amount
+let animSold = 0;
+const targetSold = CONFIG.SIMULATED_SOLD;
+const animStep = Math.ceil(targetSold/120);
+const animInterval = setInterval(()=>{
+  animSold = Math.min(animSold+animStep, targetSold);
+  updateProgress(animSold);
+  if(animSold>=targetSold) clearInterval(animInterval);
+},16);
+
+// ── CoinGecko live prices ──────────────────────────────────────────
+const CG_IDS = {
+  bitcoin:'BTC', ethereum:'ETH', 'matic-network':'MATIC',
+  solana:'SOL', binancecoin:'BNB'
+};
+const TICKER_MAP = {
+  'BTC':['btc-p','btc-c','btc-p2','btc-c2','btc-full','btc-chg'],
+  'ETH':['eth-p','eth-c','eth-p2','eth-c2','eth-full','eth-chg'],
+  'MATIC':['matic-p','matic-c','matic-p2','matic-c2','matic-full','matic-chg'],
+  'SOL':['sol-p','sol-c','sol-p2','sol-c2'],
+  'BNB':['bnb-p','bnb-c','bnb-p2','bnb-c2'],
+};
+
+async function fetchPrices(){
+  try{
+    const ids=Object.keys(CG_IDS).join(',');
+    const r=await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
+      {signal:AbortSignal.timeout(8000)}
+    );
+    if(!r.ok) throw new Error('CG '+r.status);
+    const data=await r.json();
+    Object.entries(CG_IDS).forEach(([id,sym])=>{
+      if(!data[id]) return;
+      const p=data[id].usd;
+      const c=data[id].usd_24h_change;
+      livePrices[sym]=p;
+      const pStr = p>=1000 ? '$'+p.toLocaleString('en-US',{maximumFractionDigits:0})
+                           : '$'+p.toLocaleString('en-US',{maximumFractionDigits:4});
+      const cStr = (c>=0?'+':'')+c.toFixed(2)+'%';
+      const cCls = c>=0?'up':'dn';
+      const ids=TICKER_MAP[sym]||[];
+      // ticker mini
+      if(ids[0]) setText(ids[0],pStr);
+      if(ids[1]) setChg(ids[1],cStr,cCls);
+      if(ids[2]) setText(ids[2],pStr);
+      if(ids[3]) setChg(ids[3],cStr,cCls);
+      // full price cards
+      if(ids[4]) setText(ids[4],pStr);
+      if(ids[5]) setChgFull(ids[5],cStr,cCls);
+    });
+    calcTokens();
+  }catch(e){
+    console.warn('CoinGecko fetch failed:',e.message);
+  }
+}
+function setText(id,v){const el=document.getElementById(id);if(el)el.textContent=v}
+function setChg(id,v,cls){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.textContent=v; el.className='chg '+cls;
+}
+function setChgFull(id,v,cls){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.textContent=(cls==='up'?'▲ ':'▼ ')+v+' (24h)';
+  el.className='chg24 '+cls;
+}
+fetchPrices();
+setInterval(fetchPrices, 30000);
+
+// ── BTC Price History (CoinGecko 30-day) ──────────────────────────
+async function fetchBTCHistory(){
+  try{
+    const r=await fetch(
+      'https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=30&interval=daily',
+      {signal:AbortSignal.timeout(10000)}
+    );
+    if(!r.ok) throw new Error('CG chart '+r.status);
+    const data=await r.json();
+    const prices=data.prices||[];
+    const labels=prices.map(p=>new Date(p[0]).toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+    const values=prices.map(p=>p[1]);
+    drawPriceChart(labels,values);
+  }catch(e){
+    console.warn('BTC history fetch failed:',e.message);
+    // Draw placeholder
+    const labels=Array.from({length:30},(_,i)=>{
+      const d=new Date(); d.setDate(d.getDate()-(29-i));
+      return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    });
+    const base=84000;
+    const values=labels.map((_,i)=>base+Math.sin(i*0.4)*4000+Math.random()*2000-1000);
+    drawPriceChart(labels,values);
+  }
+}
+
+function drawPriceChart(labels,values){
+  const ctx=document.getElementById('priceChart').getContext('2d');
+  const grad=ctx.createLinearGradient(0,0,0,200);
+  grad.addColorStop(0,'rgba(20,188,189,0.28)');
+  grad.addColorStop(1,'rgba(20,188,189,0.00)');
+  if(priceChart) priceChart.destroy();
+  priceChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label:'BTC/USD',
+        data:values,
+        borderColor:'#14bcbd',
+        backgroundColor:grad,
+        borderWidth:2,
+        pointRadius:0,
+        pointHoverRadius:5,
+        pointHoverBackgroundColor:'#14bcbd',
+        tension:0.35,
+        fill:true,
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          mode:'index',
+          intersect:false,
+          backgroundColor:'rgba(11,15,20,0.92)',
+          borderColor:'rgba(20,188,189,0.4)',
+          borderWidth:1,
+          titleColor:'#eaf0f7',
+          bodyColor:'#14bcbd',
+          callbacks:{
+            label:ctx=>'$'+ctx.parsed.y.toLocaleString('en-US',{maximumFractionDigits:0})
+          }
+        }
+      },
+      scales:{
+        x:{
+          grid:{color:'rgba(255,255,255,0.05)'},
+          ticks:{color:'rgba(234,240,247,0.5)',font:{size:10},maxTicksLimit:8}
+        },
+        y:{
+          grid:{color:'rgba(255,255,255,0.05)'},
+          ticks:{
+            color:'rgba(234,240,247,0.5)',
+            font:{size:10},
+            callback:v=>'$'+Math.round(v/1000)+'K'
+          }
+        }
+      },
+      interaction:{mode:'index',intersect:false}
+    }
+  });
+}
+fetchBTCHistory();
+
+// ── Tokenomics Donut Chart ─────────────────────────────────────────
+function drawTokenomics(){
+  const ctx=document.getElementById('tokenomicsChart').getContext('2d');
+  new Chart(ctx,{
+    type:'doughnut',
+    data:{
+      labels:TOKENOMICS.map(t=>t.label),
+      datasets:[{
+        data:TOKENOMICS.map(t=>t.pct),
+        backgroundColor:TOKENOMICS.map(t=>t.color),
+        borderColor:'rgba(11,15,20,0.8)',
+        borderWidth:3,
+        hoverBorderWidth:1,
+      }]
+    },
+    options:{
+      cutout:'72%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'rgba(11,15,20,0.92)',
+          borderColor:'rgba(255,255,255,0.14)',
+          borderWidth:1,
+          titleColor:'#eaf0f7',
+          bodyColor:'rgba(234,240,247,0.72)',
+          callbacks:{
+            label:ctx=>' '+ctx.label+': '+ctx.parsed+'% ('+fmt(20e6*ctx.parsed)+')'
+          }
+        }
+      }
+    }
+  });
+  // Legend
+  const leg=document.getElementById('tokenLegend');
+  TOKENOMICS.forEach(t=>{
+    const tokens = 2e9*(t.pct/100);
+    leg.innerHTML+=`
+      <div class="legend-item">
+        <div class="legend-dot" style="background:${t.color}"></div>
+        <div>
+          <div class="lname">${t.label}</div>
+          <div style="font-size:11px;color:rgba(234,240,247,0.5)">${fmt(tokens)} EXIAL</div>
+        </div>
+        <div class="lpct">${t.pct}%</div>
+      </div>`;
+  });
+}
+drawTokenomics();
+
+// ── Currency selector ──────────────────────────────────────────────
+function setCurrency(cur, btn){
+  selectedCurrency=cur;
+  document.querySelectorAll('.cur-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('payUnit').textContent=cur;
+  calcTokens();
+}
+
+// ── Token calculation ──────────────────────────────────────────────
+function calcTokens(){
+  const amt=parseFloat(document.getElementById('payInput').value)||0;
+  if(!amt){
+    document.getElementById('receiveInput').value='';
+    document.getElementById('convLine').innerHTML='Enter amount to see EXIAL equivalent';
+    return;
+  }
+  const curMap={MATIC:'MATIC',ETH:'ETH',USDC:'USD',BNB:'BNB'};
+  // Prices in USD
+  const prices={
+    MATIC: livePrices['MATIC']||0.85,
+    ETH:   livePrices['ETH']||3000,
+    USDC:  1.0,
+    BNB:   livePrices['BNB']||600,
+  };
+  const usdValue = amt * (prices[selectedCurrency]||1);
+  const exialAmt = Math.floor(usdValue / CONFIG.TOKEN_PRICE_USD);
+  document.getElementById('receiveInput').value = exialAmt.toLocaleString();
+  document.getElementById('convLine').innerHTML =
+    `≈ <span>$${usdValue.toFixed(2)}</span> → <span>${exialAmt.toLocaleString()} EXIAL</span> at $${CONFIG.TOKEN_PRICE_USD}/token`;
+}
+
+// ── Wallet connection (MetaMask / ethers.js) ───────────────────────
+async function connectWallet(){
+  if(typeof window.ethereum==='undefined'){
+    showToast('MetaMask not found. Please install MetaMask.');
+    window.open('https://metamask.io','_blank');
+    return;
+  }
+  try{
+    const accounts=await window.ethereum.request({method:'eth_requestAccounts'});
+    walletAddress=accounts[0];
+    walletConnected=true;
+    // Switch to Polygon if needed
+    try{
+      await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:CONFIG.POLYGON_CHAIN_ID}]});
+    }catch(switchErr){
+      if(switchErr.code===4902){
+        await window.ethereum.request({
+          method:'wallet_addEthereumChain',
+          params:[{
+            chainId:CONFIG.POLYGON_CHAIN_ID,
+            chainName:'Polygon Mainnet',
+            nativeCurrency:{name:'MATIC',symbol:'MATIC',decimals:18},
+            rpcUrls:['https://polygon-rpc.com'],
+            blockExplorerUrls:['https://polygonscan.com']
+          }]
+        });
+      }
+    }
+    const shortAddr=walletAddress.slice(0,6)+'…'+walletAddress.slice(-4);
+    document.getElementById('walletBtn').textContent='✓ Connected: '+shortAddr;
+    document.getElementById('walletBtn').className='btn-wallet connected';
+    document.getElementById('walletAddr').textContent=walletAddress;
+    document.getElementById('buyBtn').style.display='block';
+    showToast('Wallet connected on Polygon!');
+  }catch(e){
+    showToast('Connection cancelled or failed.');
+    console.error(e);
+  }
+}
+
+// ── Buy tokens ────────────────────────────────────────────────────
+async function buyTokens(){
+  if(!walletConnected){showToast('Connect your wallet first.');return;}
+  if(!CONFIG.CONTRACT_ADDRESS){
+    showToast('Sale contract deploying soon — join the whitelist!');
+    document.getElementById('whitelist').scrollIntoView({behavior:'smooth'});
+    return;
+  }
+  const amt=parseFloat(document.getElementById('payInput').value)||0;
+  if(amt<=0){showToast('Enter an amount to purchase.');return;}
+  // TODO: interact with EXIALSale smart contract once deployed
+  // const provider=new ethers.BrowserProvider(window.ethereum);
+  // const signer=await provider.getSigner();
+  // const sale=new ethers.Contract(CONFIG.CONTRACT_ADDRESS, SALE_ABI, signer);
+  // const tx=await sale.buyWithMatic({value: ethers.parseEther(String(amt))});
+  // await tx.wait();
+  showToast('Purchase coming live at sale launch!');
+}
+
+// ── Copy contract address ─────────────────────────────────────────
+function copyAddr(){
+  const addr=CONFIG.CONTRACT_ADDRESS||'Contract deploying soon';
+  navigator.clipboard.writeText(addr).then(()=>showToast('Address copied!'));
+}
+
+// ── Whitelist form ────────────────────────────────────────────────
+function submitWhitelist(e){
+  e.preventDefault();
+  const email=document.getElementById('wlEmail').value;
+  // TODO: POST to your backend / Nocobase / Mailchimp endpoint
+  document.querySelector('.wl-form').style.display='none';
+  document.getElementById('wlSuccess').style.display='block';
+  showToast('You\'re on the whitelist, '+email+'!');
+}
+
+// ── FAQ accordion ─────────────────────────────────────────────────
+function toggleFaq(el){el.classList.toggle('open')}
+
+// ── Smooth scroll anchor links ────────────────────────────────────
+document.querySelectorAll('a[href^="#"]').forEach(a=>{
+  a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));
+    if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth',block:'start'})}
+  });
+});
+
+// ── Wallet event listeners ────────────────────────────────────────
+if(window.ethereum){
+  window.ethereum.on('accountsChanged',accs=>{
+    if(!accs.length){
+      walletConnected=false;walletAddress=null;
+      document.getElementById('walletBtn').textContent='🔗 Connect Wallet';
+      document.getElementById('walletBtn').className='btn-wallet connect';
+      document.getElementById('walletAddr').textContent='';
+      document.getElementById('buyBtn').style.display='none';
+    }
+  });
+}
+</script>
+</body>
+</html>
