@@ -53,6 +53,31 @@
     });
   }
 
+  // ── Hamburger nav toggle ───────────────────────────
+  var navToggle = document.getElementById('nav-toggle');
+  var navEl = document.querySelector('nav');
+  if (navToggle && navEl) {
+    navToggle.addEventListener('click', function () {
+      var isOpen = navEl.classList.toggle('nav-open');
+      navToggle.innerHTML = isOpen ? '&#x2715;' : '&#9776;';
+      navToggle.setAttribute('aria-label', isOpen ? 'Close menu' : 'Open menu');
+    });
+    navEl.querySelectorAll('.nav-links a').forEach(function (a) {
+      a.addEventListener('click', function () {
+        navEl.classList.remove('nav-open');
+        navToggle.innerHTML = '&#9776;';
+        navToggle.setAttribute('aria-label', 'Open menu');
+      });
+    });
+    document.addEventListener('click', function (e) {
+      if (!navEl.contains(e.target)) {
+        navEl.classList.remove('nav-open');
+        navToggle.innerHTML = '&#9776;';
+        navToggle.setAttribute('aria-label', 'Open menu');
+      }
+    });
+  }
+
   // ── Fade-in on scroll ──────────────────────────────
   var fadeTargets = document.querySelectorAll('.stat-card, .inv-metric, .xs-card, .ec-cell, .ws-card, .rat-card, .faq-card, .cap-row, .tracker-card');
   if ('IntersectionObserver' in window && fadeTargets.length) {
